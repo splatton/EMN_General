@@ -11,6 +11,7 @@ pt_generator <- function(){
   working <- name_sex_gen(temp_tibble)
   working <- age_gen(working)
   working <- vs_gen(working)
+  working <- pmh_gen(working)
   working
 }
 
@@ -36,26 +37,32 @@ age_gen <- function(temp){
   if(first_sample == 1) {
     second_sample <- sample(0:28, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'd')
+    temp[1,'Num.Age'] <- second_sample/365
   }
   else if(first_sample == 2) {
     second_sample <- sample(1:11, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'm')
+    temp[1,'Num.Age'] <- second_sample/12
   }
   else if(first_sample == 3) {
     second_sample <- sample(1:2, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'y')
+    temp[1,'Num.Age'] <- second_sample
   }
   else if(first_sample == 4) {
     second_sample <- sample(3:5, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'y')
+    temp[1,'Num.Age'] <- second_sample
   }
   else if(first_sample == 5) {
     second_sample <- sample(6:11, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'y')
+    temp[1,'Num.Age'] <- second_sample
   }
   else if(first_sample == 6) {
     second_sample <- sample(12:18, size = 1)
     temp[1,'Age'] <- str_c(second_sample, 'y')
+    temp[1,'Num.Age'] <- second_sample
   }
   return(temp)
 }
@@ -126,5 +133,14 @@ vs_gen <- function(temp) {
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
+  return(temp)
+}
+
+pmh_gen <- function(temp) {
+  temp[1,'Prematurity'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1/(round(temp[1,'Num.Age']) + 1)),0.9))
+  temp[1,'Reactive.Airways'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'CHD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
   return(temp)
 }
