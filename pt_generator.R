@@ -12,6 +12,8 @@ pt_generator <- function(){
   working <- age_gen(working)
   working <- vs_gen(working)
   working <- pmh_gen(working)
+  working <- cc_hpi_gen(working)
+  working <- ros_gen(working)
   working
 }
 
@@ -137,10 +139,38 @@ vs_gen <- function(temp) {
 }
 
 pmh_gen <- function(temp) {
-  temp[1,'Prematurity'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1/(round(temp[1,'Num.Age']) + 1)),0.9))
-  temp[1,'Reactive.Airways'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
-  temp[1,'CHD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
-  temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
-  temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Prematurity'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.03 + 0.1/(round(temp[1,'Num.Age']) + 1)),0.9))
+  temp[1,'Downs'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.01,0.9))
+  temp[1,'Reactive.Airways'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.07 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'CHD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity'] + 0.1*temp[1,'Downs']),0.9))
+  temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.02 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.03 + 0.1*temp[1,'Prematurity']),0.9))
   return(temp)
+}
+
+cc_hpi_gen <- function(temp) {
+  cc_vec <- c('Cough', 'Runny Nose', 'Fever', 'Wheezing', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain')
+  temp[1,'Chief.Complaint'] <- sample(cc_vec, size = 1, prob = c(10, 5, 5, 3, 3, 3, 3, 2, 1))
+  temp_duration <- round(rnorm(1, mean = 2, sd = 3))
+  temp_duration <- ifelse(temp_duration < 0, -1 * temp_duration, temp_duration)
+  temp[1,'Duration'] <- ifelse(temp_duration > temp[1,'Num.Age']*365, 1, temp_duration)
+  temp[1,'Course'] <- sample(c('staying the same', 'worsening', 'improving'), size = 1)
+  temp[1,'Onset'] <- sample(c('suddenly', 'gradually'), size = 1, prob = c(3, 7))
+  temp[1,'Severity'] <- sample(c('mild', 'moderate', 'severe'), size = 1, prob = c(5,3,1))
+  temp[1,'Prior.Episodes'] <- sample(c(TRUE, FALSE), size = 1, prob = c(4,6))
+  return(temp)
+}
+
+ros_gen <- function(temp) {
+  ros_vec <- c('Cough', 'Runny Nose', 'Fever', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain', 'Vomiting', 'Wheezing', 'Rash')
+  for (i in 1:length(ros_vec)) {
+    if(ros_vec[i] != temp[1,'Chief.Complaint']) {
+      temp[1,ros_vec[i]] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.08, 0.9))
+    }
+  }
+  return(temp)
+}
+
+phys_exam_gen <- function(temp) {
+  
 }
