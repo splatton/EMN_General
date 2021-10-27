@@ -2,6 +2,7 @@
 
 narrative_gen <- function(patient) {
   ros_vec <- c('Cough', 'Runny Nose', 'Fever', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain', 'Vomiting', 'Wheezing', 'Rash')
+  ros_vec <- ros_vec[ros_vec != patient[[1,'Chief.Complaint']]]
   working <- "The patient is a "
   working <- str_c(working, patient[1,'Age'], ' old ')
   working <- str_c(working, ifelse(patient[1,'Sex'] == 'F', 'female ', 'male '))
@@ -14,16 +15,18 @@ narrative_gen <- function(patient) {
   working <- str_c(working, ' It is associated with ')
   ros_string <- ''
   for (i in 1:length(ros_vec)) {
+    temp <- ros_vec[i]
     if(patient[[1,ros_vec[i]]] & (length(ros_string) == 1)) {
-      ros_string <- str_c(ros_string, ros_vec)
+      ros_string <- str_c(ros_string, temp)
     }
     else if(patient[[1,ros_vec[i]]]) {
-      ros_string <- str_c(ros_string, " and ", ros_vec)
+      ros_string <- str_c(ros_string, " and ", temp)
     }
   }
   if(length(ros_string) == 1) {
     ros_string <- 'nothing. '
   }
+  working <- str_c(working, ros_string)
   working <- str_c(working, ' The patient has ', ifelse(patient[1,'Prior.Episodes'], '', 'never '), 'had prior similar episodes. ')
   return(working)
 }
