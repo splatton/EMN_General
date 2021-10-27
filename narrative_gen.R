@@ -18,6 +18,7 @@ narrative_gen <- function(patient) {
     temp <- ros_vec[i]
     if(patient[[1,ros_vec[i]]] & (length(ros_string) == 1)) {
       ros_string <- str_c(ros_string, temp)
+      print(temp)
     }
     else if(patient[[1,ros_vec[i]]]) {
       ros_string <- str_c(ros_string, " and ", temp)
