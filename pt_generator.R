@@ -1,5 +1,49 @@
 #This script will generate an artificial patient when called.
 
+#First we will generate constants for the VS.
+neonate_hr_mean <- 150
+neonate_hr_sd <- 35
+neonate_rr_mean <- 45
+neonate_rr_sd <- 10
+neonate_sbp_mean <- 75
+neonate_sbp_sd <- 10
+
+infant_hr_mean <- 140
+infant_hr_sd <- 35
+infant_rr_mean <- 30
+infant_rr_sd <- 10
+infant_sbp_mean <- 90
+infant_sbp_sd <- 10
+
+toddler_hr_mean <- 120
+toddler_hr_sd <- 35
+toddler_rr_mean <- 25
+toddler_rr_sd <- 8
+toddler_sbp_mean <- 90
+toddler_sbp_sd <- 15
+
+preschool_hr_mean <- 100
+preschool_hr_sd <- 20
+preschool_rr_mean <- 23
+preschool_rr_sd <- 6
+preschool_sbp_mean <- 95
+preschool_sbp_sd <- 15
+
+gradeschool_hr_mean <- 90
+gradeschool_hr_sd <- 20
+gradeschool_rr_mean <- 20
+gradeschool_rr_sd <- 6
+gradeschool_sbp_mean <- 100
+gradeschool_sbp_sd <- 15
+
+adolescent_hr_mean <- 80
+adolescent_hr_sd <- 20
+adolescent_rr_mean <- 18
+adolescent_rr_sd <- 6
+adolescent_sbp_mean <- 120
+adolescent_sbp_sd <- 20
+
+
 pt_generator <- function(){
   #Loading libraries
   library(dplyr)
@@ -14,6 +58,7 @@ pt_generator <- function(){
   working <- pmh_gen(working)
   working <- cc_hpi_gen(working)
   working <- ros_gen(working)
+  working <- fever_duration_gen(working)
   working
 }
 
@@ -32,7 +77,7 @@ name_sex_gen <- function(temp){
 #Age/age.cat generator
 age_gen <- function(temp){
   age_cats <- c('Neonate', 'Infant', 'Toddler', 'Preschool', 'Grade School', 'Adolescent')
-  first_sample <- sample(size = 1, 1:length(age_cats))
+  first_sample <- sample(size = 1, 1:length(age_cats), prob = c(0.5,1,1,1,1,1))
   temp[1,'Age.Cat'] <- age_cats[first_sample]
   
   #This next part of the code will use the age.cat to pick the numerical age. For readability, this numerical age will be translated into a string.
@@ -74,14 +119,17 @@ vs_gen <- function(temp) {
   age_cats <- c('Neonate', 'Infant', 'Toddler', 'Preschool', 'Grade School', 'Adolescent')
   
   
-  #This next part of the code will use the age.cat to pick the numerical age. For readability, this numerical age will be translated into a string.
+  #This next part of the code will use the age.cat to choose the correct vital sign distributions.
   if(temp[1,'Age.Cat'] == age_cats[1]) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 150 + temp_adj*8, sd = 35))
-    temp[1,'RR'] <- round(rnorm(1, mean = 45 + temp_adj, sd = 10))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 75, sd = 10))
+    temp[1,'HR'] <- round(rnorm(1, mean = neonate_hr_mean + temp_adj*8, sd = neonate_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - neonate_hr_mean)/neonate_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = neonate_rr_mean + temp_adj, sd = neonate_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - neonate_rr_mean)/neonate_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = neonate_sbp_mean, sd = neonate_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - neonate_sbp_mean)/neonate_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -89,9 +137,12 @@ vs_gen <- function(temp) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 140 + temp_adj*8, sd = 35))
-    temp[1,'RR'] <- round(rnorm(1, mean = 30 + temp_adj, sd = 10))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 90, sd = 10))
+    temp[1,'HR'] <- round(rnorm(1, mean = infant_hr_mean + temp_adj*8, sd = infant_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - infant_hr_mean)/infant_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = infant_rr_mean + temp_adj, sd = infant_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - infant_rr_mean)/infant_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = infant_sbp_mean, sd = infant_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - infant_sbp_mean)/infant_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -99,9 +150,12 @@ vs_gen <- function(temp) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 120 + temp_adj*8, sd = 35))
-    temp[1,'RR'] <- round(rnorm(1, mean = 25 + temp_adj, sd = 8))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 90, sd = 15))
+    temp[1,'HR'] <- round(rnorm(1, mean = toddler_hr_mean + temp_adj*8, sd = toddler_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - toddler_hr_mean)/toddler_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = toddler_rr_mean + temp_adj, sd = toddler_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - toddler_rr_mean)/toddler_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = toddler_sbp_mean, sd = toddler_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - toddler_sbp_mean)/toddler_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -109,9 +163,12 @@ vs_gen <- function(temp) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 100 + temp_adj*8, sd = 20))
-    temp[1,'RR'] <- round(rnorm(1, mean = 23 + temp_adj, sd = 6))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 95, sd = 15))
+    temp[1,'HR'] <- round(rnorm(1, mean = preschool_hr_mean + temp_adj*8, sd = preschool_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - preschool_hr_mean)/preschool_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = preschool_rr_mean + temp_adj, sd = preschool_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - preschool_rr_mean)/preschool_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = preschool_sbp_mean, sd = preschool_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - preschool_sbp_mean)/preschool_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -119,9 +176,12 @@ vs_gen <- function(temp) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 90 + temp_adj*8, sd = 20))
-    temp[1,'RR'] <- round(rnorm(1, mean = 20 + temp_adj, sd = 6))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 100, sd = 15))
+    temp[1,'HR'] <- round(rnorm(1, mean = gradeschool_hr_mean + temp_adj*8, sd = gradeschool_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - gradeschool_hr_mean)/gradeschool_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = gradeschool_rr_mean + temp_adj, sd = gradeschool_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - gradeschool_rr_mean)/gradeschool_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = gradeschool_sbp_mean, sd = gradeschool_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - gradeschool_sbp_mean)/gradeschool_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -129,9 +189,12 @@ vs_gen <- function(temp) {
     temp[1,'Temp.C'] <- round(rnorm(1, mean = 37.5, sd = 1), digits = 1)
     temp[1,'Temp.F'] <- round((temp[1,'Temp.C']*(9/5)+32), digits = 1)
     temp_adj <- as.double(ifelse(temp[1,'Temp.C'] > 38, temp[[1,'Temp.C']] - 38, 0))
-    temp[1,'HR'] <- round(rnorm(1, mean = 80 + temp_adj*8, sd = 20))
-    temp[1,'RR'] <- round(rnorm(1, mean = 18 + temp_adj, sd = 6))
-    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = 120, sd = 20))
+    temp[1,'HR'] <- round(rnorm(1, mean = adolescent_hr_mean + temp_adj*8, sd = adolescent_hr_sd))
+    temp[1,'HR.Z'] <- (temp[1,'HR'] - adolescent_hr_mean)/adolescent_hr_sd
+    temp[1,'RR'] <- round(rnorm(1, mean = adolescent_rr_mean + temp_adj, sd = adolescent_rr_sd))
+    temp[1,'RR.Z'] <- (temp[1,'RR'] - adolescent_rr_mean)/adolescent_rr_sd
+    temp[1,'Systolic.BP'] <- round(rnorm(1, mean = adolescent_sbp_mean, sd = adolescent_sbp_sd))
+    temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - adolescent_sbp_mean)/adolescent_sbp_sd
     temp_pulse_ox <- round(rnorm(1, mean = 99, sd = 6))
     temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
   }
@@ -140,17 +203,20 @@ vs_gen <- function(temp) {
 
 pmh_gen <- function(temp) {
   temp[1,'Prematurity'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.03 + 0.1/(round(temp[1,'Num.Age']) + 1)),0.9))
-  temp[1,'Downs'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.01,0.9))
+  temp[1,'Downs'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.002,0.998))
   temp[1,'Reactive.Airways'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.07 + 0.1*temp[1,'Prematurity']),0.9))
   temp[1,'CHD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity'] + 0.1*temp[1,'Downs']),0.9))
-  temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.02 + 0.1*temp[1,'Prematurity']),0.9))
-  temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.03 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
+  temp[1,'Sickle Cell'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005,0.995))
+  temp[1,'Bronchopulmonary Dysplasia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.001 + 0.1*temp[1,'Prematurity']),0.999))
+  temp[1,'Cystic.Fibrosis'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.001,0.999))
+  temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity'] + 0.5*temp[1,'Cystic.Fibrosis']),0.9))
   return(temp)
 }
 
 cc_hpi_gen <- function(temp) {
   cc_vec <- c('Cough', 'Runny Nose', 'Fever', 'Wheezing', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain')
-  temp[1,'Chief.Complaint'] <- sample(cc_vec, size = 1, prob = c(10, 5, 5, 3, 3, 3, 3, 2, 1))
+  temp[1,'Chief.Complaint'] <- sample(cc_vec, size = 1, prob = c(10, 2, 5, 5, 4, 4, 3, 2, 0.1*temp[1,'Num.Age']))
   temp_duration <- round(rnorm(1, mean = 2, sd = 3))
   temp_duration <- ifelse(temp_duration < 0, -1 * temp_duration, temp_duration)
   temp[1,'Duration'] <- ifelse(temp_duration > temp[1,'Num.Age']*365, 1, temp_duration)
@@ -167,10 +233,36 @@ ros_gen <- function(temp) {
     if(ros_vec[i] != temp[1,'Chief.Complaint']) {
       temp[1,ros_vec[i]] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.08, 0.9))
     }
+    else {
+      temp[1,ros_vec[i]] <- TRUE
+    }
+  }
+  return(temp)
+}
+
+fever_duration_gen <- function(temp) {
+  if(temp[1,'Fever'] | (temp[1,'Chief.Complaint'] == 'Fever')) {
+    temp[1,'Fever.Duration'] <- sample(0:temp[[1,'Duration']], size = 1)
+  }
+  else {
+    temp[1,'Fever.Duration'] <- 0
   }
   return(temp)
 }
 
 phys_exam_gen <- function(temp) {
-  
+  #These are the pulmonary exam findings.
+  temp[1,'PE.Dyspnea'] <- temp
+  temp[1,'PE.Wheezing'] <- temp
+  temp[1,'PE.RespDistress'] <- temp
+  temp[1,'PE.Retractions'] <- temp
+  temp[1,'PE.Grunting'] <- temp
+  temp[1,'PE.FocalDecrBS'] <- temp
+  temp[1,'PE.Rales'] <- temp
+  temp[1,'PE.FocalRales'] <- temp
+  temp[1,'PE.MMM'] <- temp
+  temp[1,'PE.Murmur'] <- sample(c(TRUE,FALSE), size = 1, prob = c(0.01, 0.99))
+  temp[1,'PE.AbdDistension'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
+  temp[1,'PE.Lethargy'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
+  temp[1,'PE.Pale'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
 }
