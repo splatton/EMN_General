@@ -59,6 +59,7 @@ pt_generator <- function(){
   working <- cc_hpi_gen(working)
   working <- ros_gen(working)
   working <- fever_duration_gen(working)
+  working <- phys_exam_gen(working)
   working
 }
 
@@ -252,17 +253,22 @@ fever_duration_gen <- function(temp) {
 
 phys_exam_gen <- function(temp) {
   #These are the pulmonary exam findings.
-  temp[1,'PE.Dyspnea'] <- temp
-  temp[1,'PE.Wheezing'] <- temp
-  temp[1,'PE.RespDistress'] <- temp
-  temp[1,'PE.Retractions'] <- temp
-  temp[1,'PE.Grunting'] <- temp
-  temp[1,'PE.FocalDecrBS'] <- temp
-  temp[1,'PE.Rales'] <- temp
-  temp[1,'PE.FocalRales'] <- temp
-  temp[1,'PE.MMM'] <- temp
+  temp[1,'PE.Dyspnea'] <- sample(c(FALSE,TRUE), size = 1, prob = c(20,(0.5*((temp[[1,'RR.Z']]+2)^4))*((temp[[1,'Pulse.Ox']]-98)/4)^4)*(temp[[1,'HR.Z']]+2)^2)
+  temp[1,'PE.Wheezing'] <- sample(c(FALSE,TRUE), size = 1, prob = c(20,(0.5*((temp[[1,'RR.Z']]+2)^2))*((temp[[1,'Pulse.Ox']]-98)/4)^2)*(temp[[1,'Reactive.Airways']]+1)^4)
+  temp[1,'PE.RespDistress'] <- sample(c(FALSE,TRUE), size = 1, prob = c(40,(0.5*(temp[[1,'RR.Z']]^4))*((temp[[1,'Pulse.Ox']]-98)/4)^4)*(temp[[1,'HR.Z']]+2)^2)
+  temp[1,'PE.Retractions'] <- sample(c(FALSE,TRUE), size = 1, prob = c(30,(0.5*(temp[[1,'RR.Z']]^4))*((temp[[1,'Pulse.Ox']]-98)/4)^4))
+  temp[1,'PE.Grunting'] <- sample(c(FALSE, TRUE), size = 1, prob = c(40,(0.5*(temp[[1,'RR.Z']]^4))*((temp[[1,'Pulse.Ox']]-98)/4)^4))
+  
+  #This physical exam finding is more related to infectious type findings.
+  temp[1,'PE.FocalDecrBS'] <- sample(c(FALSE, TRUE), size = 1, prob = c(10,(0.5+(temp[[1,'RR.Z']]^2))*((temp[[1,'Pulse.Ox']]-98)/4)^2)*((temp[[1,'Fever']] | (temp[[1,'Temp.C']] > 38))+1)^2)
+  
+  #The rales finding is more common than focal rales. Both will go up with fever and multiplicatively as pulse ox decreases below 94%.
+  temp[1,'PE.Rales'] <- sample(c(FALSE, TRUE), size = 1, prob = c(15,(0.5+(temp[[1,'RR.Z']]^2))*((temp[[1,'Pulse.Ox']]-98)/4)^2)*((temp[[1,'Fever']] | (temp[[1,'Temp.C']] > 38))+1))
+  temp[1,'PE.FocalRales'] <- sample(c(FALSE, TRUE), size = 1, prob = c(20,(0.5+(temp[[1,'RR.Z']]^2))*((temp[[1,'Pulse.Ox']]-98)/4)^2)*((temp[[1,'Fever']] | (temp[[1,'Temp.C']] > 38))+1)^2)
+  temp[1,'PE.MMM'] <- sample(c(TRUE,FALSE), size = 1, prob = c(20,1*(temp[[1,'HR.Z']])^2))
   temp[1,'PE.Murmur'] <- sample(c(TRUE,FALSE), size = 1, prob = c(0.01, 0.99))
   temp[1,'PE.AbdDistension'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
-  temp[1,'PE.Lethargy'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
-  temp[1,'PE.Pale'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005, 0.995))
+  temp[1,'PE.Lethargy'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005*(((temp[[1,'Pulse.Ox']]-98)/4)^2)*((temp[1,'SBP.Z']-2)^2), 0.995))
+  temp[1,'PE.Pale'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005*(temp[[1,'HR.Z']]^2), 0.995))
+  return(temp)
 }
