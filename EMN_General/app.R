@@ -238,8 +238,8 @@ pmh_gen <- function(temp) {
     temp[1,'Reactive.Airways'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.07 + 0.1*temp[1,'Prematurity']),0.9))
     temp[1,'CHD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity'] + 0.1*temp[1,'Downs']),0.9))
     temp[1,'Bronchiolitis'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity']),0.9))
-    temp[1,'Sickle Cell'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005,0.995))
-    temp[1,'Bronchopulmonary Dysplasia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.001 + 0.1*temp[1,'Prematurity']),0.999))
+    temp[1,'Sickle.Cell'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.005,0.995))
+    temp[1,'BPD'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.001 + 0.1*temp[1,'Prematurity']),0.999))
     temp[1,'Cystic.Fibrosis'] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.001,0.999))
     temp[1,'Pneumonia'] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.05 + 0.1*temp[1,'Prematurity'] + 0.5*temp[1,'Cystic.Fibrosis']),0.9))
     return(temp)
@@ -409,12 +409,25 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                     verticalLayout(
                         tags$h2("HPI"),
                         hr(),
-                        textOutput("pt_narrative")
+                        textOutput("pt_narrative"),
+                        hr(),
+                        tags$h2("PMHx"),
+                        hr(),
+                        textOutput("pmhx")
                     )
                 ),
                 wellPanel(
                     verticalLayout(
-                        
+                        tags$h2("Physical Exam"),
+                        #This next part of the layout will show the vital signs.
+                        hr(),
+                        flowLayout(
+                            textOutput("temp"),
+                            textOutput("pulse"),
+                            textOutput("resps"),
+                            textOutput("bloodpressure"),
+                            textOutput("pulseox")
+                        )
                     )
                 ),
                 wellPanel(
@@ -439,6 +452,40 @@ server <- function(input, output) {
     
     output$pt_narrative <- renderText({
         narrative_gen(v$patient)
+    })
+    
+    output$pmhx <- renderText({
+        pmhx_string <- str_c(ifelse(v$patient[[1,'Prematurity']], 'Prematurity, ', ''),
+                             ifelse(v$patient[[1,'Downs']], 'Downs Syndrome, ', ''),
+                             ifelse(v$patient[[1,'Reactive.Airways']], 'Reactive Airways, ', ''),
+                             ifelse(v$patient[[1,'CHD']], 'Congenital Heart Disease, ', ''),
+                             ifelse(v$patient[[1,'Bronchiolitis']], 'Bronchiolitis, ', ''),
+                             ifelse(v$patient[[1,'Sickle.Cell']], 'Sickle Cell Disease, ', ''),
+                             ifelse(v$patient[[1,'BPD']], 'Bronchopulmonary Dysplasia, ', ''),
+                             ifelse(v$patient[[1,'Cystic.Fibrosis']], 'Cystic Fibrosis, ', ''),
+                             ifelse(v$patient[[1,'Pneumonia']], 'Pneumonia, ', '')
+                             )
+        pmhx_string
+    })
+    
+    output$temp <- renderText({
+        str_c("Temp: ", v$patient[[1,'Temp.C']], "C / ", v$patient[[1,'Temp.F']], "F")
+    })
+    
+    output$pulse <- renderText({
+        str_c("P: ", v$patient[[1,'HR']])
+    })
+    
+    output$resps <- renderText({
+        str_c("RR: ", v$patient[[1,'RR']])
+    })
+    
+    output$bloodpressure <- renderText({
+        str_c("SBP: ", v$patient[[1,'Systolic.BP']])
+    })
+    
+    output$pulseox <- renderText({
+        str_c("Pulse Ox: ", v$patient[[1,'Pulse.Ox']], "%")
     })
     
 }
