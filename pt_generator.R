@@ -241,7 +241,7 @@ pmh_gen <- function(temp) {
 
 cc_hpi_gen <- function(temp) {
   cc_vec <- c('Cough', 'Runny Nose', 'Fever', 'Wheezing', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain')
-  temp[1,'Chief.Complaint'] <- sample(cc_vec, size = 1, prob = c(10, 2, 5, 5, 4, 4, 3, 2, 0.1*temp[1,'Num.Age']))
+  temp[1,'Chief.Complaint'] <- sample(cc_vec, size = 1, prob = c(10, 2, 5, 5, 4, 4, 3, 2, 0.1*temp[[1,'Num.Age']]))
   temp_duration <- round(rnorm(1, mean = 2, sd = 3))
   temp_duration <- ifelse(temp_duration < 0, -1 * temp_duration, temp_duration)
   temp[1,'Duration'] <- ifelse(temp_duration > temp[1,'Num.Age']*365, 1, temp_duration)
@@ -257,6 +257,9 @@ ros_gen <- function(temp) {
   for (i in 1:length(ros_vec)) {
     if((ros_vec[i] == 'Wheezing') & temp[[1,'Reactive.Airways']] & (temp[[1,'Chief.Complaint']] != 'Wheezing')){
       temp[1,ros_vec[i]] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.7, 0.3))
+    }
+    else if((ros_vec[i] != temp[1,'Chief.Complaint']) & (ros_vec[i]== 'Chest Pain')) {
+      temp[1,ros_vec[i]] <- sample(c(TRUE, FALSE), size = 1, prob = c((0.08*(temp[[1,'Num.Age']]*0.1)), 0.9))
     }
     else if(ros_vec[i] != temp[1,'Chief.Complaint']) {
       temp[1,ros_vec[i]] <- sample(c(TRUE, FALSE), size = 1, prob = c(0.08, 0.9))
