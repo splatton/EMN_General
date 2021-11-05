@@ -355,7 +355,7 @@ narrative_gen <- function(patient) {
     working <- str_c(working, ros_string)
     
     if((patient[1,'Temp.C'] >= 38) & (patient[1,'Chief.Complaint'] != 'Fever') & !(patient[1,'Fever'])) {
-        working <- str_c(working, '. The patient was has not been febrile before coming to the ER')
+        working <- str_c(working, '. The patient has not been febrile before coming to the ER')
     }
     if(((patient[1,'Chief.Complaint'] != 'Fever') & (patient[1,'Fever'])) & (patient[[1,'Fever.Duration']] == 0)) {
         working <- str_c(working, '. The patient has had a fever today only')
@@ -393,6 +393,7 @@ pt_gen_loop <- function(num_loops) {
 # Defines the UI for the patient generation application
 ui <- fluidPage(theme = shinytheme("cosmo"),
                 useShinyjs(),
+                useSweetAlert(),
 
     # Application title
     titlePanel("Welcome to EMN General!"),
@@ -406,7 +407,8 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
             verticalLayout(
             #Login information here
             div(id = "login_div",
-                helpText("Enter your username and and email address for the leaderboard. Remember: the winner gets 20 bucks. Your email address will not be shared; I just need it to contact you in case you win."),
+                helpText(tags$b("Enter your username and and email address for the leaderboard.")),
+                helpText("Remember: the winner gets 20 bucks. Your email address will not be shared; I just need it to contact you in case you win."),
             textInput(inputId = "user_inpt", label = "Username"),
             textInput(inputId = "email_inpt", label = "E-Mail Address"),
             actionButton(inputId = "login_btn", label = "Log In")
@@ -417,7 +419,10 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                     hr(),
                     textOutput("pts_seen")
                     )
-            )
+            ),
+            hr(),
+            tags$a(href = "cnn.com", "RAW DATASET"),
+            tags$a(href = "mailto:spltt.tlb@gmail.com", "EMAIL ME")
             ) 
         ),
 
@@ -458,7 +463,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                 ),
                 wellPanel(
                     verticalLayout(
-                    tags$h2("Testing"),
+                    tags$h2("Decision Time!"),
                     br(),
                     helpText("Would you recommend a chest X-ray for this patient?"),
                     hr(),
@@ -474,11 +479,12 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         ),
                     shinyjs::hidden(
                     div(id = "thanks",
-                        helpText("Thanks! Click the button below to see another patient.")
+                        helpText("Thanks! Your next patient is waiting for you!")
                     )
                         ),
-                    hr(),
-                    actionButton(inputId = "new_patient", label = "New Patient")
+                    br()
+                    #hr(),
+                    #actionButton(inputId = "new_patient", label = "New Patient")
                 )
                 )
         )
@@ -488,15 +494,21 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
     tabPanel("Leaderboard",
              wellPanel(
                  helpText(tags$b("Scoring Algorithm: "), "Your score is your accuracy squared times the number of questions answered. You are rewarded for every correct answer, but an incorrect answer will penalize you!"),
+                 helpText("The leaderboard will refresh periodically; check back often because your standings may change as others input their data."),
                  hr(),
                  helpText("The leaderboard will populate once enough people have tried the application.")
              )
-             )
+             ),
+    tabPanel("Test a Patient",
+             wellPanel(
+                 helpText("This area will allow a person to input data on a hypothetical patient to see if an electronic consensus of doctors would recommend a chest X-ray. It will populate once enough fake patients have been treated!"),
+                 tags$b("Please do not use this on real patients at this time.")
+             ))
     )
 )
 
 # Server logic
-server <- function(input, output) {
+server <- function(input, output, session) {
     
     v <- reactiveValues()
     
@@ -505,6 +517,9 @@ server <- function(input, output) {
     
     v$patient <- pt_generator()
     
+    v$data_sheet <- 'X'
+    v$num_treated <- 0
+    
     #User management functions
     
     observeEvent(input$login_btn, {
@@ -512,10 +527,15 @@ server <- function(input, output) {
         v$user_email <- input$email_inpt
         shinyjs::hide(id = "login_div")
         shinyjs::show(id = "logged_in_div")
+        v$num_treated <- 0 #Sheet filtered
     })
     
     output$user_text <- renderText({
-        str_c("Doctor ", str_to_title(v$username))
+        str_c("Dr. ", str_to_title(v$username))
+    })
+    
+    output$pts_seen <- renderText({
+        str_c("Number of patients treated: ", v$num_treated)
     })
     
     #Patient info functions
@@ -649,11 +669,33 @@ server <- function(input, output) {
     observeEvent(input$yes_cxr, {
         shinyjs::hide(id = "cxr_div")
         shinyjs::show(id = "thanks")
+        v$num_treated <- v$num_treated + 1
+        v$patient <- pt_generator()
+        sendSweetAlert(
+            session = session,
+            title = "Great job!",
+            text = "Time to see your next patient!",
+            type = "success"
+        )
+        shinyjs::show(id = "cxr_div")
+        shinyjs::hide(id = "thanks")
+        shinyjs::runjs("window.scrollTo(0, 0)")
     })
     
     observeEvent(input$no_cxr, {
         shinyjs::hide(id = "cxr_div")
         shinyjs::show(id = "thanks")
+        v$num_treated <- v$num_treated + 1
+        v$patient <- pt_generator()
+        sendSweetAlert(
+            session = session,
+            title = "Great job!",
+            text = "Time to see your next patient!",
+            type = "success"
+        )
+        shinyjs::show(id = "cxr_div")
+        shinyjs::hide(id = "thanks")
+        shinyjs::runjs("window.scrollTo(0, 0)")
     })
     
     #New patient button
