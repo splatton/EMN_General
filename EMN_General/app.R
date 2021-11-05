@@ -5,6 +5,7 @@
 library(shiny)
 library(shinythemes)
 library(shinyWidgets)
+library(shinyjs)
 library(dplyr)
 library(readr)
 library(stringr)
@@ -63,6 +64,8 @@ adolescent_rr_mean <- 18
 adolescent_rr_sd <- 6
 adolescent_sbp_mean <- 120
 adolescent_sbp_sd <- 20
+
+pulse_ox_sd <- 5
 
 #Other constants
 
@@ -146,7 +149,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - neonate_hr_mean)/neonate_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = neonate_sbp_mean, sd = neonate_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - neonate_sbp_mean)/neonate_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     
@@ -162,7 +165,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - infant_hr_mean)/infant_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = infant_sbp_mean, sd = infant_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - infant_sbp_mean)/infant_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     
@@ -178,7 +181,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - toddler_hr_mean)/toddler_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = toddler_sbp_mean, sd = toddler_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - toddler_sbp_mean)/toddler_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     
@@ -194,7 +197,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - preschool_hr_mean)/preschool_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = preschool_sbp_mean, sd = preschool_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - preschool_sbp_mean)/preschool_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     
@@ -210,7 +213,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - gradeschool_hr_mean)/gradeschool_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = gradeschool_sbp_mean, sd = gradeschool_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - gradeschool_sbp_mean)/gradeschool_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     
@@ -226,7 +229,7 @@ vs_gen <- function(temp) {
         temp[1,'HR.Z'] <- (temp[1,'HR'] - adolescent_hr_mean)/adolescent_hr_sd
         temp[1,'Systolic.BP'] <- round(rnorm(1, mean = adolescent_sbp_mean, sd = adolescent_sbp_sd))
         temp[1,'SBP.Z'] <- (temp[1,'Systolic.BP'] - adolescent_sbp_mean)/adolescent_sbp_sd
-        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = 6))
+        temp_pulse_ox <- round(rnorm(1, mean = 99 - temp[[1,'RR.Z']], sd = pulse_ox_sd))
         temp[1,'Pulse.Ox'] <- ifelse(temp_pulse_ox > 100, 100, temp_pulse_ox)
     }
     return(temp)
@@ -389,6 +392,7 @@ pt_gen_loop <- function(num_loops) {
 
 # Defines the UI for the patient generation application
 ui <- fluidPage(theme = shinytheme("cosmo"),
+                useShinyjs(),
 
     # Application title
     titlePanel("Welcome to EMN General!"),
@@ -399,7 +403,22 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
     # Sidebar allows for user login and downloading of procedurally-generated patient data. 
     sidebarLayout(
         sidebarPanel(
+            verticalLayout(
             #Login information here
+            div(id = "login_div",
+                helpText("Enter your username and and email address for the leaderboard. Remember: the winner gets 20 bucks. Your email address will not be shared; I just need it to contact you in case you win."),
+            textInput(inputId = "user_inpt", label = "Username"),
+            textInput(inputId = "email_inpt", label = "E-Mail Address"),
+            actionButton(inputId = "login_btn", label = "Log In")
+            ),
+            shinyjs::hidden(
+                div(id = "logged_in_div",
+                    tags$b(textOutput("user_text")),
+                    hr(),
+                    textOutput("pts_seen")
+                    )
+            )
+            ) 
         ),
 
         # The main panel shows the patient information and allows the user to make their selections.
@@ -408,11 +427,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                 wellPanel(
                     verticalLayout(
                         tags$h2("HPI"),
-                        hr(),
                         textOutput("pt_narrative"),
                         hr(),
                         tags$h2("PMHx"),
-                        hr(),
                         textOutput("pmhx")
                     )
                 ),
@@ -427,18 +444,53 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                             textOutput("resps"),
                             textOutput("bloodpressure"),
                             textOutput("pulseox")
+                        ),
+                        br(),
+                        verticalLayout(
+                            textOutput("pe_resp"),
+                            textOutput("pe_cards"),
+                            textOutput("pe_abd"),
+                            textOutput("pe_heent"),
+                            textOutput("pe_skin"),
+                            textOutput("pe_neuro")
                         )
                     )
                 ),
                 wellPanel(
-                    
+                    verticalLayout(
+                    tags$h2("Testing"),
+                    br(),
+                    helpText("Would you recommend a chest X-ray for this patient?"),
+                    hr(),
+                    div(id = "cxr_div",
+                        flowLayout(
+                            actionButton(inputId = "yes_cxr",
+                                         "Recommend a Chest X-Ray",
+                                         icon = icon("thumbs-up")),
+                            actionButton(inputId = "no_cxr",
+                                         "Recommend No Imaging",
+                                         icon = icon("thumbs-down"))
+                        )
+                        ),
+                    shinyjs::hidden(
+                    div(id = "thanks",
+                        helpText("Thanks! Click the button below to see another patient.")
+                    )
+                        ),
+                    hr(),
+                    actionButton(inputId = "new_patient", label = "New Patient")
+                )
                 )
         )
         )
     )
     ),
     tabPanel("Leaderboard",
-             
+             wellPanel(
+                 helpText(tags$b("Scoring Algorithm: "), "Your score is your accuracy squared times the number of questions answered. You are rewarded for every correct answer, but an incorrect answer will penalize you!"),
+                 hr(),
+                 helpText("The leaderboard will populate once enough people have tried the application.")
+             )
              )
     )
 )
@@ -448,7 +500,25 @@ server <- function(input, output) {
     
     v <- reactiveValues()
     
+    v$username <- ''
+    v$user_email <- ''
+    
     v$patient <- pt_generator()
+    
+    #User management functions
+    
+    observeEvent(input$login_btn, {
+        v$username <- input$user_inpt
+        v$user_email <- input$email_inpt
+        shinyjs::hide(id = "login_div")
+        shinyjs::show(id = "logged_in_div")
+    })
+    
+    output$user_text <- renderText({
+        str_c("Doctor ", str_to_title(v$username))
+    })
+    
+    #Patient info functions
     
     output$pt_narrative <- renderText({
         narrative_gen(v$patient)
@@ -465,8 +535,16 @@ server <- function(input, output) {
                              ifelse(v$patient[[1,'Cystic.Fibrosis']], 'Cystic Fibrosis, ', ''),
                              ifelse(v$patient[[1,'Pneumonia']], 'Pneumonia, ', '')
                              )
+        if(pmhx_string == '') {
+            pmhx_string <- 'None'
+        }
+        if(str_detect(pmhx_string, ',')) {
+            pmhx_string <- str_sub(pmhx_string, end = -3L)
+        }
         pmhx_string
     })
+    
+    #This part generates the text for vital signs
     
     output$temp <- renderText({
         str_c("Temp: ", v$patient[[1,'Temp.C']], "C / ", v$patient[[1,'Temp.F']], "F")
@@ -486,6 +564,104 @@ server <- function(input, output) {
     
     output$pulseox <- renderText({
         str_c("Pulse Ox: ", v$patient[[1,'Pulse.Ox']], "%")
+    })
+    
+    #This part generates physical exam findings
+    
+    output$pe_resp <- renderText({
+        abnl_string <- str_c(ifelse(v$patient[[1,'PE.Dyspnea']], 'dyspneic, ', ''),
+                             ifelse(v$patient[[1,'PE.Wheezing']], 'wheezing, ', ''),
+                             ifelse(v$patient[[1,'PE.RespDistress']], 'respiratory distress, ', ''),
+                             ifelse(v$patient[[1,'PE.Retractions']], 'retracting, ', ''),
+                             ifelse(v$patient[[1,'PE.Grunting']], 'grunting, ', ''),
+                             ifelse(v$patient[[1,'PE.FocalDecrBS']], 'focal decreased breath sounds, ', ''),
+                             ifelse(v$patient[[1,'PE.Rales']], 'rales, ', ''),
+                             ifelse(v$patient[[1,'PE.FocalRales']], 'worse rales focally, ', ''))
+        
+        #This part cleanes the outputs for printing
+        if(abnl_string == '') {
+            temp_string <- 'Normal breath sounds, no distress'
+        }
+        else {
+            temp_string <- str_sub(abnl_string, end = -3L)
+            temp_string <- str_to_sentence(temp_string)
+        }
+        str_c("Respiratory: ", temp_string)
+    })
+    
+    output$pe_cards <- renderText({
+        temp_string <- ''
+        if(v$patient[[1,'PE.Murmur']]) {
+            temp_string <- "murmur"
+        }
+        else {
+            temp_string <- "no murmurs"
+        }
+        str_c("Cardiac: Regular rhythm, ", temp_string)
+    })
+    
+    output$pe_abd <- renderText({
+        temp_string <- ''
+        if(v$patient[[1,'PE.AbdDistension']]) {
+            temp_string <- "Distended abdomen"
+        }
+        else {
+            temp_string <- "Normal"
+        }
+        str_c("Abdomen: ", temp_string)
+    })
+    
+    output$pe_heent <- renderText({
+        temp_string <- ''
+        if(v$patient[[1,'PE.MDry']]) {
+            temp_string <- "Dry mucous membranes"
+        }
+        else {
+            temp_string <- "Moist mucous membranes"
+        }
+        str_c("HEENT: ", temp_string)
+    })
+    
+    output$pe_skin <- renderText({
+        temp_string <- ''
+        if(v$patient[[1,'PE.Pale']]) {
+            temp_string <- "Pale"
+        }
+        else {
+            temp_string <- "Normal"
+        }
+        str_c("Skin: ", temp_string)
+    })
+    
+    output$pe_neuro <- renderText({
+        temp_string <- ''
+        if(v$patient[[1,'PE.Lethargy']]) {
+            temp_string <- "Lethargic"
+        }
+        else {
+            temp_string <- "Awake, alert"
+        }
+        str_c("Neuro: ", temp_string)
+    })
+    
+    #CXR Buttons
+    
+    observeEvent(input$yes_cxr, {
+        shinyjs::hide(id = "cxr_div")
+        shinyjs::show(id = "thanks")
+    })
+    
+    observeEvent(input$no_cxr, {
+        shinyjs::hide(id = "cxr_div")
+        shinyjs::show(id = "thanks")
+    })
+    
+    #New patient button
+    observeEvent(input$new_patient, {
+        v$patient <- pt_generator()
+        shinyjs::show(id = "cxr_div")
+        shinyjs::hide(id = "thanks")
+        shinyjs::runjs("window.scrollTo(0, 0)")
     })
     
 }
