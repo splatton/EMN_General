@@ -515,6 +515,8 @@ server <- function(input, output, session) {
     v$username <- ''
     v$user_email <- ''
     
+    v$user_set <- 'X'
+    
     v$patient <- pt_generator()
     
     v$data_sheet <- 'X'
@@ -523,11 +525,30 @@ server <- function(input, output, session) {
     #User management functions
     
     observeEvent(input$login_btn, {
-        v$username <- input$user_inpt
-        v$user_email <- input$email_inpt
-        shinyjs::hide(id = "login_div")
-        shinyjs::show(id = "logged_in_div")
-        v$num_treated <- 0 #Sheet filtered
+        if(input$user_inpt %in% v$user_set$User) {
+            if(input$email_inpt == v$user_set[[which(v$user_set$User == input$user_inpt), 'Email']]) {
+                v$username <- input$user_inpt
+                shinyjs::hide(id = "login_div")
+                shinyjs::show(id = "logged_in_div")
+                v$num_treated <- sum(v$data_sheet$User == v$username, na.rm = TRUE)
+            }
+            else {
+                sendSweetAlert(
+                    session = session,
+                    title = "Login Error",
+                    text = "Wrong username/e-mail combination. Please try again. Email me with any questions.",
+                    type = "error"
+                )
+            }
+        }
+        else {
+            v$username <- input$user_inpt
+            v$user_email <- input$email_inpt
+            shinyjs::hide(id = "login_div")
+            shinyjs::show(id = "logged_in_div")
+            v$num_treated <- 0 #Sheet filtered
+            #Insert code to append the user_sheet
+        }
     })
     
     output$user_text <- renderText({
