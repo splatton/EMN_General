@@ -10,6 +10,15 @@ library(dplyr)
 library(readr)
 library(stringr)
 library(tibble)
+library(googlesheets4)
+library(gargle)
+library(googledrive)
+
+drive_auth(
+    cache = ".secrets",
+    email = "spltt.tlb@gmail.com"
+)
+
 
 #This section will be for defining constants and reading in initial data.
 
@@ -515,11 +524,11 @@ server <- function(input, output, session) {
     v$username <- ''
     v$user_email <- ''
     
-    v$user_set <- 'X'
+    v$user_set <- as_tibble(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1sQXS3FBIujmrGp0HWT7Qh0dcolkz583SDaCzXBHAMmI/edit#gid=0")), stringsAsFactors = TRUE)
     
     v$patient <- pt_generator()
     
-    v$data_sheet <- 'X'
+    v$data_sheet <- as_tibble(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0")), stringsAsFactors = TRUE)
     v$num_treated <- 0
     
     #User management functions
@@ -547,7 +556,8 @@ server <- function(input, output, session) {
             shinyjs::hide(id = "login_div")
             shinyjs::show(id = "logged_in_div")
             v$num_treated <- 0 #Sheet filtered
-            #Insert code to append the user_sheet
+            temp_frame <- data.frame(User = v$username, Email = v$user_email)
+            sheet_append("https://docs.google.com/spreadsheets/d/1sQXS3FBIujmrGp0HWT7Qh0dcolkz583SDaCzXBHAMmI/edit#gid=0", temp_frame[1,])
         }
     })
     
