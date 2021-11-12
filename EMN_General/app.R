@@ -14,9 +14,9 @@ library(googlesheets4)
 library(gargle)
 library(googledrive)
 
-drive_auth(
+gs4_auth(
     cache = ".secrets",
-    email = "spltt.tlb@gmail.com"
+    email = "emn.belanger@gmail.com"
 )
 
 
@@ -344,7 +344,7 @@ narrative_gen <- function(patient) {
     working <- str_c(working, 'who presents with ', tolower(patient[1,'Chief.Complaint']), '. ')
     working <- str_c(working, 'The ', tolower(patient[1,'Chief.Complaint']), ' started ')
     working <- str_c(working, patient[1,'Onset'], ' ')
-    working <- str_c(working, ifelse(patient[[1,'Duration']] == 0, 'today ', str_c(patient[1,'Duration'], ' days ago. ')))
+    working <- str_c(working, ifelse(patient[[1,'Duration']] == 0, 'today. ', str_c(patient[1,'Duration'], ' days ago. ')))
     working <- str_c(working, 'The ', tolower(patient[1,'Chief.Complaint']), ' is currently ', patient[1,'Severity'], ' in severity ')
     working <- str_c(working, 'and has been ', patient[1,'Course'], '.')
     working <- str_c(working, ' It is associated with ')
@@ -430,7 +430,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                     )
             ),
             hr(),
-            tags$a(href = "cnn.com", "RAW DATASET"),
+            tags$a(href = "https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit?usp=sharing", "RAW DATASET"),
             tags$a(href = "mailto:spltt.tlb@gmail.com", "EMAIL ME")
             ) 
         ),
@@ -501,18 +501,66 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
     )
     ),
     tabPanel("Leaderboard",
+             verticalLayout(
              wellPanel(
                  helpText(tags$b("Scoring Algorithm: "), "Your score is your accuracy squared times the number of questions answered. You are rewarded for every correct answer, but an incorrect answer will penalize you!"),
                  helpText("The leaderboard will refresh periodically; check back often because your standings may change as others input their data."),
-                 hr(),
-                 helpText("The leaderboard will populate once enough people have tried the application.")
+                 textOutput("ifnotleaderboard")
+             ),
+             wellPanel(
+                 dataTableOutput("leaderboard_tbl")
+             )
              )
              ),
     tabPanel("Test a Patient",
              wellPanel(
-                 helpText("This area will allow a person to input data on a hypothetical patient to see if an electronic consensus of doctors would recommend a chest X-ray. It will populate once enough fake patients have been treated!"),
-                 tags$b("Please do not use this on real patients at this time.")
-             ))
+                 helpText("Use this area to input data on a hypothetical patient to see if a consensus of digital doctors would recommend a chest X-ray. Input as much information as possible to get the best prediction."),
+                 tags$b("Using this on real patients may produce unpredictable results.")
+             ),
+             wellPanel(
+                 verticalLayout(
+                     tags$h3("Demographics"),
+                     flowLayout(
+                         sliderInput(inputId = 'age_num', 'Age', value = 10, min = 1, max = 18, step = 1),
+                         selectInput(inputId = 'age_units', 'Age Units', choices = c('Years', 'Months', 'Days'))
+                     ),
+                     selectInput(inputId = 'choose_sex', 'Sex', choices = c('M', 'F')),
+                     pickerInput(inputId = 'choose_pmhx', 'Medical History', multiple = TRUE, choices = c('Prematurity', 'Downs Syndrome', 'Reactive Airways', 'Congenital Heart Disease', 'Bronchiolitis', 'Sickle Cell', 'Bronchopulmonary Dysplasia', 'Cystic Fibrosis', 'Pneumonia')),
+                     hr(),
+                     tags$h3("HPI"),
+                     pickerInput(inputId = 'choose_cc', 'Chief Complaint', choices = cc_vec, options = list(`live-search` = TRUE)),
+                     flowLayout(
+                         sliderInput("choose_duration", "Duration", value = 1, max = 10, min = 0),
+                         selectInput("choose_course", "Course", choices = c('Improving', 'Staying the same', 'Worsening')),
+                         selectInput("choose_onset", "Onset", choices = c('Gradually', 'Suddenly')),
+                         selectInput("choose_severity", "Severity", choices = c('Mild', 'Moderate', 'Severe')),
+                         selectInput("choose_priors", 'Prior Similar Episodes', choices = c(FALSE, TRUE)),
+                         sliderInput("choose_fever", "Fever Duration (Days)", value = 0, min = 0, max = 10)
+                     ),
+                     pickerInput("choose_ros", "Review of Systems", multiple = TRUE, options = list(`live-search` = TRUE), choices = ros_vec),
+                     hr(),
+                     tags$h3("Physical Exam"),
+                     flowLayout(
+                         sliderInput(inputId = 'choose_temp', 'Temperature', value = 37.5, min = 35, max = 40, step = 0.1),
+                         selectInput(inputId = 'temp_units', 'Temperature Units', choices = c('C', 'F'))
+                     ),
+                     flowLayout(
+                         sliderInput(inputId = 'choose_hr', 'Pulse Rate', max = 200, min = 10, step = 1, value = 100),
+                         sliderInput(inputId = 'choose_rr', 'Respiratory Rate', max = 60, min = 4, step = 1, value = 20),
+                         sliderInput(inputId = 'choose_sbp', 'Systolic BP', min = 50, max = 180, value = 100, step = 1),
+                         sliderInput(inputId = 'choose_ox', 'Pulse Ox', min = 70, max = 100, value = 99, step = 1)
+                     ),
+                     pickerInput("choose_heent", "HEENT", multiple = TRUE, choices = c('Dry Mucous Membranes')),
+                     pickerInput("choose_cardiac", "Heart", multiple = TRUE, choices = c('Murmur')),
+                     pickerInput("choose_lungs", "Lungs", multiple = TRUE, choices = c('Dyspnea', 'Wheezing', 'Respiratory Distress', 'Retractions', 'Grunting', 'Focal Decreased Breath Sounds', 'Rales', 'Focal Rales')),
+                     pickerInput("choose_abd", "Abdomen", multiple = TRUE, choices = c('Distended')),
+                     pickerInput("choose_skin", "Skin", multiple = TRUE, choices = c('Pale')),
+                     pickerInput("choose_neuro", "Neuro", multiple = TRUE, choices = c('Lethargic')),
+                     hr(),
+                     actionButton('newpt_submit', 'Submit')
+                 )
+             )
+             )
     )
 )
 
@@ -701,32 +749,44 @@ server <- function(input, output, session) {
         shinyjs::hide(id = "cxr_div")
         shinyjs::show(id = "thanks")
         v$num_treated <- v$num_treated + 1
-        v$patient <- pt_generator()
         sendSweetAlert(
             session = session,
             title = "Great job!",
             text = "Time to see your next patient!",
             type = "success"
         )
+        temp_frame <- as.data.frame(v$patient)
+        temp_frame[1,'CXR'] <- TRUE
+        temp_frame[1,'User'] <- v$username
+        temp_frame[1,'Time'] <- Sys.time()
+        sheet_append("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0", temp_frame[1,])
+        v$patient <- pt_generator()
         shinyjs::show(id = "cxr_div")
         shinyjs::hide(id = "thanks")
         shinyjs::runjs("window.scrollTo(0, 0)")
+        v$data_sheet <- as_tibble(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0")), stringsAsFactors = TRUE)
     })
     
     observeEvent(input$no_cxr, {
         shinyjs::hide(id = "cxr_div")
         shinyjs::show(id = "thanks")
         v$num_treated <- v$num_treated + 1
-        v$patient <- pt_generator()
         sendSweetAlert(
             session = session,
             title = "Great job!",
             text = "Time to see your next patient!",
             type = "success"
         )
+        temp_frame <- as.data.frame(v$patient)
+        temp_frame[1,'CXR'] <- FALSE
+        temp_frame[1,'User'] <- v$username
+        temp_frame[1,'Time'] <- Sys.time()
+        sheet_append("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0", temp_frame[1,])
+        v$patient <- pt_generator()
         shinyjs::show(id = "cxr_div")
         shinyjs::hide(id = "thanks")
         shinyjs::runjs("window.scrollTo(0, 0)")
+        v$data_sheet <- as_tibble(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0")), stringsAsFactors = TRUE)
     })
     
     #New patient button
@@ -735,6 +795,59 @@ server <- function(input, output, session) {
         shinyjs::show(id = "cxr_div")
         shinyjs::hide(id = "thanks")
         shinyjs::runjs("window.scrollTo(0, 0)")
+    })
+    
+    #Leaderbaord
+    
+    output$ifnotleaderboard <- renderText({
+        "I will manually populate the leaderboard scores until the data becomes sufficiently large. This may take some time due to the complexity of the dataset!"
+    })
+    
+    output$leaderboard_tbl <- renderDataTable({
+        user_summary <- summarize(group_by(v$data_sheet, User), n = n())
+        user_summary <- arrange(user_summary, desc(n))
+    })
+    
+    #Prediction Logic
+    
+    #Updates the age-picking slider input
+    
+    observe({
+        choice <- input$age_units
+        if(choice == 'Years') {
+            updateSliderInput(session, 'age_num', value = 10, min = 1, max = 18, step = 1)
+        }
+        else if (choice == 'Months') {
+            updateSliderInput(session, 'age_num', value = 6, min = 1, max = 12, step = 1)
+        }
+        else if (choice == 'Days') {
+            updateSliderInput(session, 'age_num', value = 14, min = 0, max = 28, step = 1)
+        }
+    })
+    
+    #Update temps
+    
+    observe({
+        if (input$temp_units == 'C') {
+            min_temp <- min(v$data_sheet$Temp.C)
+            max_temp <- max(v$data_sheet$Temp.C)
+            temp_val <- 37.5
+        }
+        else if (input$temp_units == 'F') {
+            min_temp <- min(v$data_sheet$Temp.F)
+            max_temp <- max(v$data_sheet$Temp.F)
+            temp_val <- 98
+        }
+        updateSliderInput(session, 'choose_temp', value = temp_val, min = min_temp, max = max_temp, step = 0.1)
+    })
+    
+    #Updates sliders for VS
+    
+    observe({
+        updateSliderInput(session, 'choose_hr', value = (min(v$data_sheet$HR) + max(v$data_sheet$HR))/2, min = min(v$data_sheet$HR), max = max(v$data_sheet$HR), step = 1)
+        updateSliderInput(session, 'choose_rr', value = (min(v$data_sheet$RR) + max(v$data_sheet$RR))/2, min = min(v$data_sheet$RR), max = max(v$data_sheet$RR), step = 1)
+        updateSliderInput(session, 'choose_sbp', value = (min(v$data_sheet$Systolic.BP) + max(v$data_sheet$Systolic.BP))/2, min = min(v$data_sheet$Systolic.BP), max = max(v$data_sheet$Systolic.BP), step = 1)
+        updateSliderInput(session, 'choose_ox', value = 99, min = min(v$data_sheet$Pulse.Ox), max = 100, step = 1)
     })
     
 }
