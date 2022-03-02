@@ -13,6 +13,7 @@ library(tibble)
 library(googlesheets4)
 library(gargle)
 library(googledrive)
+library(randomForest)
 
 gs4_auth(
     cache = ".secrets",
@@ -83,6 +84,19 @@ age_cats <- c('Neonate', 'Infant', 'Toddler', 'Preschool', 'Grade School', 'Adol
 cc_vec <- c('Cough', 'Runny Nose', 'Fever', 'Wheezing', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain')
 
 ros_vec <- c('Cough', 'Runny Nose', 'Fever', 'Shortness of Breath', 'Congestion', 'Sore Throat', 'Lethargy', 'Chest Pain', 'Vomiting', 'Wheezing', 'Rash')
+
+#Making a model
+
+predictive_cols <- c('Sex', 'Age.Cat', 'Num.Age', 'Temp.C', 'RR.Z', 'HR.Z', 'SBP.Z', 'Pulse.Ox', 'Prematurity', 'Downs', 'Reactive.Airways', 'CHD', 'Bronchiolitis', 'Sickle.Cell', 'BPD', 'Cystic.Fibrosis', 'Pneumonia', 'Chief.Complaint', 'Duration', 'Course', 'Onset', 'Severity', 'Prior.Episodes', 'Cough', 'Runny.Nose', 'Fever', 'Shortness.of.Breath', 'Congestion', 'Sore.Throat', 'Lethargy', 'Chest.Pain', 'Vomiting', 'Wheezing', 'Rash', 'Fever.Duration', 'PE.Dyspnea', 'PE.Wheezing', 'PE.RespDistress', 'PE.Retractions', 'PE.Grunting', 'PE.FocalDecrBS', 'PE.Rales', 'PE.FocalRales', 'PE.MDry', 'PE.Murmur', 'PE.AbdDistension', 'PE.Lethargy', 'PE.Pale', 'CXR')
+
+full_data <- as.data.frame(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0")), stringsAsFactors = TRUE)
+full_data[,'CXR'] <- as.factor(full_data[,'CXR'])
+
+rf_model <- randomForest(CXR ~.,
+                           data = select(full_data,
+                                         predictive_cols),
+                         ntree = 2000)
+
 
 #Reading in data
 
@@ -504,8 +518,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
              verticalLayout(
              wellPanel(
                  helpText(tags$b("Scoring Algorithm: "), "Your score is your accuracy squared times the number of questions answered. You are rewarded for every correct answer, but an incorrect answer will penalize you!"),
-                 helpText("The leaderboard will refresh periodically; check back often because your standings may change as others input their data."),
-                 textOutput("ifnotleaderboard")
+                 helpText("The leaderboard will refresh in each new session of the application. Your overall score may change as more people respond since this will change the algorithm.")
              ),
              wellPanel(
                  dataTableOutput("leaderboard_tbl")
@@ -559,6 +572,13 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                      hr(),
                      actionButton('newpt_submit', 'Submit')
                  )
+             ),
+             shinyjs::hidden(
+                 div(id = 'new_pt_results_panel',
+                     wellPanel(
+                         textOutput('print_prob')
+                     )
+                     )
              )
              )
     )
@@ -578,6 +598,8 @@ server <- function(input, output, session) {
     
     v$data_sheet <- as_tibble(unclass(read_sheet("https://docs.google.com/spreadsheets/d/1dD3uXgwLvEZDbXNUch99ytemNBijieprxWzwqI2Cm5Q/edit#gid=0")), stringsAsFactors = TRUE)
     v$num_treated <- 0
+    
+    v$new_pt_prob <- NA
     
     #User management functions
     
@@ -804,8 +826,13 @@ server <- function(input, output, session) {
     })
     
     output$leaderboard_tbl <- renderDataTable({
-        user_summary <- summarize(group_by(v$data_sheet, User), n = n())
-        user_summary <- arrange(user_summary, desc(n))
+        
+        pred_vec <- as.vector(as.logical(rf_model$predicted))
+        working <- cbind(full_data, pred_vec)
+        
+        user_summary <- summarize(group_by(working, User), n = n(), Accuracy = sum(pred_vec == CXR, na.rm = TRUE)/n, Score = n*(Accuracy^2))
+        user_summary <- na.omit(user_summary)
+        user_summary <- arrange(user_summary, desc(Score))
     })
     
     #Prediction Logic
@@ -848,6 +875,139 @@ server <- function(input, output, session) {
         updateSliderInput(session, 'choose_rr', value = (min(v$data_sheet$RR) + max(v$data_sheet$RR))/2, min = min(v$data_sheet$RR), max = max(v$data_sheet$RR), step = 1)
         updateSliderInput(session, 'choose_sbp', value = (min(v$data_sheet$Systolic.BP) + max(v$data_sheet$Systolic.BP))/2, min = min(v$data_sheet$Systolic.BP), max = max(v$data_sheet$Systolic.BP), step = 1)
         updateSliderInput(session, 'choose_ox', value = 99, min = min(v$data_sheet$Pulse.Ox), max = 100, step = 1)
+    })
+    
+    observeEvent(input$newpt_submit, {
+        new_pt <- full_data
+        
+        new_pt[1,'Sex'] <- input$choose_sex
+        
+        new_pt_numage <- 0
+        if (input$age_units == 'Years') {
+            new_pt_numage <- input$age_num
+        } else if (input$age_units == 'Months') {
+            new_pt_numage <- input$age_num/12
+        } else if (input$age_units == 'Days') {
+            new_pt_numage <- input$age_num/365
+        }
+        new_pt[1,'Num.Age'] <- new_pt_numage
+        
+        if (new_pt_numage < (2/12)) {
+            new_pt[1,'Age.Cat'] <- age_cats[1]
+        } else if (new_pt_numage < 1) {
+            new_pt[1,'Age.Cat'] <- age_cats[2]
+        } else if (new_pt_numage < 3) {
+            new_pt[1,'Age.Cat'] <- age_cats[3]
+        } else if (new_pt_numage < 6) {
+            new_pt[1,'Age.Cat'] <- age_cats[4]
+        } else if (new_pt_numage < 12) {
+            new_pt[1,'Age.Cat'] <- age_cats[5]
+        } else {
+            new_pt[1,'Age.Cat'] <- age_cats[6]
+        }
+        
+        new_pt_temp <- 0
+        if (input$temp_units == 'F') {
+            new_pt[1,'Temp.C'] <- (input$choose_temp-32)*(5/9)
+        } else {
+            new_pt[1,'Temp.C'] <- input$choose_temp
+        }
+        
+        #Now we calculate z-scores for the VS
+        if (new_pt[1,'Age.Cat'] == age_cats[1]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - neonate_rr_mean)/neonate_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - neonate_hr_mean)/neonate_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - neonate_sbp_mean)/neonate_sbp_sd
+        } else if (new_pt[1,'Age.Cat'] == age_cats[2]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - infant_rr_mean)/infant_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - infant_hr_mean)/infant_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - infant_sbp_mean)/infant_sbp_sd
+        } else if (new_pt[1,'Age.Cat'] == age_cats[3]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - toddler_rr_mean)/toddler_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - toddler_hr_mean)/toddler_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - toddler_sbp_mean)/toddler_sbp_sd
+        } else if (new_pt[1,'Age.Cat'] == age_cats[4]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - preschool_rr_mean)/preschool_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - preschool_hr_mean)/preschool_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - preschool_sbp_mean)/preschool_sbp_sd
+        } else if (new_pt[1,'Age.Cat'] == age_cats[5]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - gradeschool_rr_mean)/gradeschool_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - gradeschool_hr_mean)/gradeschool_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - gradeschool_sbp_mean)/gradeschool_sbp_sd
+        } else if (new_pt[1,'Age.Cat'] == age_cats[6]) {
+            new_pt[1,'RR.Z'] <- (input$choose_rr - adolescent_rr_mean)/adolescent_rr_sd
+            new_pt[1,'HR.Z'] <- (input$choose_hr - adolescent_hr_mean)/adolescent_hr_sd
+            new_pt[1,'SBP.Z'] <- (input$choose_sbp - adolescent_sbp_mean)/adolescent_sbp_sd
+        }
+        
+        new_pt[1,'Pulse.Ox'] <- input$choose_ox
+        
+        #Now PMHx
+        
+        new_pt[1,'Prematurity'] <- ifelse('Prematurity' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Downs'] <- ifelse('Downs Syndrome' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Reactive.Airways'] <- ifelse('Reactive Airways' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'CHD'] <- ifelse('Congenital Heart Disease' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Bronchiolitis'] <- ifelse('Bronchiolitis' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Sickle.Cell'] <- ifelse('Sickle Cell' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'BPD'] <- ifelse('Bronchopulmonary Dysplasia' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Cystic.Fibrosis'] <- ifelse('Cystic Fibrosis' %in% input$choose_pmhx, TRUE, FALSE)
+        new_pt[1,'Pneumonia'] <- ifelse('Pneumonia' %in% input$choose_pmhx, TRUE, FALSE)
+        
+        #Now we do the HPI
+        new_pt[1,'Chief.Complaint'] <- input$choose_cc
+        new_pt[1,'Duration'] <- input$choose_duration
+        new_pt[1,'Course'] <- tolower(input$choose_course)
+        new_pt[1,'Onset'] <- tolower(input$choose_onset)
+        new_pt[1,'Severity'] <- tolower(input$choose_severity)
+        new_pt[1,'Prior.Episodes'] <- as.logical(input$choose_priors)
+        
+        #Now we do the ROS
+        
+        new_pt[1,'Cough'] <- ifelse('Cough' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Runny.Nose'] <- ifelse('Runny Nose' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Fever'] <- ifelse('Fever' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Shortness.of.Breath'] <- ifelse('Shortness of Breath' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Congestion'] <- ifelse('Congestion' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Sore.Throat'] <- ifelse('Sore Throat' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Lethargy'] <- ifelse('Lethargy' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Chest.Pain'] <- ifelse('Pain' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Vomiting'] <- ifelse('Vomiting' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Wheezing'] <- ifelse('Wheezing' %in% input$choose_ros, TRUE, FALSE)
+        new_pt[1,'Rash'] <- ifelse('Rash' %in% input$choose_ros, TRUE, FALSE)
+        
+        new_pt[1,'Fever.Duration'] <- input$choose_fever
+        
+        #Now we do each part of the physical exam
+        
+        new_pt[1,'PE.Dyspnea'] <- ifelse('Dyspnea' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.Wheezing'] <- ifelse('Wheezing' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.RespDistress'] <- ifelse('Respiratory Distress' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.Retractions'] <- ifelse('Retractions' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.Grunting'] <- ifelse('Grunting' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.FocalDecrBS'] <- ifelse('Focal Decreased Breath Sounds' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.Rales'] <- ifelse('Rales' %in% input$choose_lungs, TRUE, FALSE)
+        new_pt[1,'PE.FocalRales'] <- ifelse('Focal Rales' %in% input$choose_lungs, TRUE, FALSE)
+        
+        new_pt[1,'PE.MDry'] <- ifelse('Dry Mucous Membranes' %in% input$choose_heent, TRUE, FALSE)
+        
+        new_pt[1,'PE.Murmur'] <- ifelse('Murmur' %in% input$choose_cardiac, TRUE, FALSE)
+        
+        new_pt[1,'PE.AbdDistension'] <- ifelse('Distended' %in% input$choose_abd, TRUE, FALSE)
+        
+        new_pt[1,'PE.Lethargy'] <- ifelse('Lethargic' %in% input$choose_neuro, TRUE, FALSE)
+        
+        new_pt[1,'PE.Pale'] <- ifelse('Pale' %in% input$choose_skin, TRUE, FALSE)
+        
+        prob <- predict(rf_model, newdata = new_pt[1,], type = 'prob')
+        v$new_pt_prob <- prob[2]
+        
+        shinyjs::show(id = 'new_pt_results_panel', anim = TRUE)
+    })
+    
+    output$print_prob <- renderText({
+        working <- v$new_pt_prob*100
+        str_c('Probability of Chest X-Ray:  ', as.character(working), '%')
     })
     
 }
