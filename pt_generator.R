@@ -318,9 +318,13 @@ phys_exam_gen <- function(temp) {
 }
 
 pt_gen_loop <- function(num_loops) {
+  library(parallel)
+  library(parallelMap)
+  parallelStartSocket(cpus = detectCores())
   temp <- data.frame()
   for (i in 1:num_loops) {
     temp <- rbind(temp,pt_generator())
   }
+  parallelStop()
   return(temp)
 }
